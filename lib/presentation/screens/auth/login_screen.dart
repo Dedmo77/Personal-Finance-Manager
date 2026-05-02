@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
+import '../../widgets/app_text_field.dart';
 import '../../providers/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -27,16 +28,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
-
-    final auth = context.read<AuthProvider>();
-    final success = await auth.login(
-      _emailController.text.trim(),
-      _passwordController.text,
-    );
-
-    if (success && mounted) {
-      context.go('/dashboard');
-    }
+    final success = await context.read<AuthProvider>().login(
+          _emailController.text.trim(),
+          _passwordController.text,
+        );
+    if (success && mounted) context.go('/dashboard');
   }
 
   @override
@@ -82,21 +78,17 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
         const SizedBox(height: 24),
-        Text(
+        const Text(
           AppStrings.welcomeBack,
-          style: const TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-          ),
+          style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary),
         ),
         const SizedBox(height: 8),
-        Text(
+        const Text(
           AppStrings.loginSubtitle,
-          style: const TextStyle(
-            fontSize: 15,
-            color: AppColors.textSecondary,
-          ),
+          style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
         ),
       ],
     );
@@ -107,7 +99,6 @@ class _LoginScreenState extends State<LoginScreen> {
       key: _formKey,
       child: Column(
         children: [
-          // error banner
           if (auth.status == AuthStatus.error) ...[
             Container(
               width: double.infinity,
@@ -122,24 +113,20 @@ class _LoginScreenState extends State<LoginScreen> {
                   const Icon(Icons.error_outline,
                       color: AppColors.error, size: 18),
                   const SizedBox(width: 8),
-                  Text(
-                    auth.errorMessage,
-                    style: const TextStyle(
-                        color: AppColors.error, fontSize: 14),
-                  ),
+                  Text(auth.errorMessage,
+                      style: const TextStyle(
+                          color: AppColors.error, fontSize: 14)),
                 ],
               ),
             ),
             const SizedBox(height: 16),
           ],
-
-          // email field
-          _buildTextField(
+          AppTextField(
             controller: _emailController,
             label: AppStrings.email,
-            hint: 'you@example.com',
-            keyboardType: TextInputType.emailAddress,
+            hint: AppStrings.emailHint,
             prefixIcon: Icons.email_outlined,
+            keyboardType: TextInputType.emailAddress,
             validator: (val) {
               if (val == null || val.isEmpty) return AppStrings.emailRequired;
               if (!RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(val)) {
@@ -149,14 +136,12 @@ class _LoginScreenState extends State<LoginScreen> {
             },
           ),
           const SizedBox(height: 16),
-
-          // password field
-          _buildTextField(
+          AppTextField(
             controller: _passwordController,
             label: AppStrings.password,
-            hint: '••••••••',
-            obscureText: _obscurePassword,
+            hint: AppStrings.passwordHint,
             prefixIcon: Icons.lock_outline_rounded,
+            obscureText: _obscurePassword,
             suffixIcon: IconButton(
               icon: Icon(
                 _obscurePassword
@@ -175,8 +160,6 @@ class _LoginScreenState extends State<LoginScreen> {
             },
           ),
           const SizedBox(height: 12),
-
-          // forgot password
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
@@ -189,16 +172,13 @@ class _LoginScreenState extends State<LoginScreen> {
               child: const Text(
                 AppStrings.forgotPassword,
                 style: TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
+                    color: AppColors.primary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500),
               ),
             ),
           ),
           const SizedBox(height: 24),
-
-          // login button
           SizedBox(
             width: double.infinity,
             height: 52,
@@ -210,25 +190,18 @@ class _LoginScreenState extends State<LoginScreen> {
                 disabledBackgroundColor: AppColors.primary.withOpacity(0.6),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                    borderRadius: BorderRadius.circular(12)),
               ),
               child: isLoading
                   ? const SizedBox(
                       width: 22,
                       height: 22,
                       child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2.5,
-                      ),
+                          color: Colors.white, strokeWidth: 2.5),
                     )
-                  : const Text(
-                      AppStrings.login,
+                  : const Text(AppStrings.login,
                       style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                          fontSize: 16, fontWeight: FontWeight.w600)),
             ),
           ),
         ],
@@ -236,98 +209,21 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    required IconData prefixIcon,
-    TextInputType keyboardType = TextInputType.text,
-    bool obscureText = false,
-    Widget? suffixIcon,
-    String? Function(String?)? validator,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: controller,
-          keyboardType: keyboardType,
-          obscureText: obscureText,
-          validator: validator,
-          style: const TextStyle(
-            fontSize: 15,
-            color: AppColors.textPrimary,
-          ),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 15,
-            ),
-            prefixIcon: Icon(prefixIcon,
-                color: AppColors.textSecondary, size: 20),
-            suffixIcon: suffixIcon,
-            filled: true,
-            fillColor: AppColors.surface,
-            contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16, vertical: 14),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.border),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.border),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide:
-                  const BorderSide(color: AppColors.primary, width: 1.5),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.error),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide:
-                  const BorderSide(color: AppColors.error, width: 1.5),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildRegisterLink() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Text(
-          AppStrings.noAccount,
-          style: TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 14,
-          ),
-        ),
+        const Text(AppStrings.noAccount,
+            style:
+                TextStyle(color: AppColors.textSecondary, fontSize: 14)),
         GestureDetector(
           onTap: () => context.go('/register'),
           child: const Text(
             AppStrings.signUp,
             style: TextStyle(
-              color: AppColors.primary,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
+                color: AppColors.primary,
+                fontSize: 14,
+                fontWeight: FontWeight.w600),
           ),
         ),
       ],

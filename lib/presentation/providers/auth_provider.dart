@@ -18,6 +18,7 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoggedIn => _authService.isLoggedIn;
   String get userName => _authService.userName;
   String get userEmail => _authService.userEmail;
+  String get baseCurrency => _authService.baseCurrency;
 
   void _checkAuthStatus() {
     _status = _authService.isLoggedIn
@@ -46,32 +47,53 @@ class AuthProvider extends ChangeNotifier {
     return success;
   }
 
+  Future<void> register({
+    required String name,
+    required String email,
+    required String password,
+    required String baseCurrency,
+  }) async {
+    _status = AuthStatus.loading;
+    notifyListeners();
+
+    await Future.delayed(const Duration(milliseconds: 800));
+
+    await _authService.register(
+      name: name,
+      email: email,
+      password: password,
+      baseCurrency: baseCurrency,
+    );
+
+    _status = AuthStatus.authenticated;
+    notifyListeners();
+  }
+
+  /// Returns an error message on failure, or null on success.
+  Future<String?> updateProfile({
+    required String name,
+    required String email,
+    String? currentPassword,
+    String? newPassword,
+  }) async {
+    final error = await _authService.updateProfile(
+      name: name,
+      email: email,
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+    if (error == null) notifyListeners();
+    return error;
+  }
+
+  Future<void> setBaseCurrency(String currency) async {
+    await _authService.setBaseCurrency(currency);
+    notifyListeners();
+  }
+
   Future<void> logout() async {
     await _authService.logout();
     _status = AuthStatus.unauthenticated;
     notifyListeners();
   }
-
-  Future<void> register({
-  required String name,
-  required String email,
-  required String password,
-  required String baseCurrency,
-}) async {
-  _status = AuthStatus.loading;
-  notifyListeners();
-
-  await Future.delayed(const Duration(milliseconds: 800));
-
-  await _authService.register(
-    name: name,
-    email: email,
-    password: password,
-    baseCurrency: baseCurrency,
-  );
-
-  _status = AuthStatus.authenticated;
-  notifyListeners();
 }
-}
-

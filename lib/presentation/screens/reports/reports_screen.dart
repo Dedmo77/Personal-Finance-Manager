@@ -1,27 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_strings.dart';
+import '../../../core/utils/category_utils.dart';
 import '../../providers/transaction_provider.dart';
 
-class ReportsScreen extends StatefulWidget {
+class ReportsScreen extends StatelessWidget {
   const ReportsScreen({super.key});
-
-  @override
-  State<ReportsScreen> createState() => _ReportsScreenState();
-}
-
-class _ReportsScreenState extends State<ReportsScreen> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final month = DateFormat('yyyy-MM').format(DateTime.now());
-      context.read<TransactionProvider>().loadMonth(month);
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,10 +19,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.primary,
         elevation: 0,
-        title: const Text(
-          'Reports',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
+        title: const Text(AppStrings.reports,
+            style:
+                TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => context.go('/dashboard'),
@@ -65,7 +51,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       children: [
         Expanded(
           child: _buildCard(
-            label: 'Income',
+            label: AppStrings.income,
             amount: txProvider.totalIncome,
             icon: Icons.trending_up,
             color: AppColors.secondary,
@@ -74,7 +60,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         const SizedBox(width: 12),
         Expanded(
           child: _buildCard(
-            label: 'Expenses',
+            label: AppStrings.expenses,
             amount: txProvider.totalExpenses,
             icon: Icons.trending_down,
             color: AppColors.error,
@@ -103,14 +89,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              Text(label,
+                  style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w600)),
               Icon(icon, color: color, size: 20),
             ],
           ),
@@ -118,10 +101,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           Text(
             '\$${amount.toStringAsFixed(2)}',
             style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
+                fontSize: 18, fontWeight: FontWeight.bold, color: color),
           ),
         ],
       ),
@@ -129,6 +109,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Widget _buildIncomeExpenseChart(TransactionProvider txProvider) {
+    final maxY = [txProvider.totalIncome, txProvider.totalExpenses]
+            .reduce((a, b) => a > b ? a : b) *
+        1.2;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -139,37 +123,30 @@ class _ReportsScreenState extends State<ReportsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Income vs Expenses',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
-          ),
+          const Text(AppStrings.incomeVsExpenses,
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary)),
           const SizedBox(height: 16),
           SizedBox(
             height: 200,
             child: BarChart(
               BarChartData(
                 alignment: BarChartAlignment.spaceAround,
-                maxY: _getMaxY(txProvider),
+                maxY: maxY,
                 barTouchData: BarTouchData(enabled: false),
                 titlesData: FlTitlesData(
-                  show: true,
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
-                        const titles = ['Income', 'Expenses'];
-                        return Text(
-                          titles[value.toInt()],
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        );
+                        const titles = [AppStrings.income, AppStrings.expenses];
+                        return Text(titles[value.toInt()],
+                            style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12));
                       },
                     ),
                   ),
@@ -177,52 +154,38 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     sideTitles: SideTitles(
                       showTitles: true,
                       reservedSize: 40,
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          '\$${value.toInt()}',
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 10,
-                          ),
-                        );
-                      },
+                      getTitlesWidget: (value, meta) => Text(
+                        '\$${value.toInt()}',
+                        style: const TextStyle(
+                            color: AppColors.textSecondary, fontSize: 10),
+                      ),
                     ),
                   ),
                   topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
+                      sideTitles: SideTitles(showTitles: false)),
                   rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
+                      sideTitles: SideTitles(showTitles: false)),
                 ),
                 borderData: FlBorderData(show: false),
                 barGroups: [
-                  BarChartGroupData(
-                    x: 0,
-                    barRods: [
-                      BarChartRodData(
-                        toY: txProvider.totalIncome,
-                        color: AppColors.secondary,
-                        width: 40,
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(8),
-                        ),
-                      ),
-                    ],
-                  ),
-                  BarChartGroupData(
-                    x: 1,
-                    barRods: [
-                      BarChartRodData(
-                        toY: txProvider.totalExpenses,
-                        color: AppColors.error,
-                        width: 40,
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(8),
-                        ),
-                      ),
-                    ],
-                  ),
+                  BarChartGroupData(x: 0, barRods: [
+                    BarChartRodData(
+                      toY: txProvider.totalIncome,
+                      color: AppColors.secondary,
+                      width: 40,
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(8)),
+                    ),
+                  ]),
+                  BarChartGroupData(x: 1, barRods: [
+                    BarChartRodData(
+                      toY: txProvider.totalExpenses,
+                      color: AppColors.error,
+                      width: 40,
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(8)),
+                    ),
+                  ]),
                 ],
               ),
             ),
@@ -243,9 +206,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           border: Border.all(color: AppColors.border),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Center(
-          child: Text('No expense data available'),
-        ),
+        child: const Center(child: Text(AppStrings.noExpenseData)),
       );
     }
 
@@ -261,133 +222,71 @@ class _ReportsScreenState extends State<ReportsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Spending by Category',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
-          ),
+          const Text(AppStrings.spendingByCategory,
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary)),
           const SizedBox(height: 16),
-          Column(
-            children: spending.entries.map((entry) {
-              final category = entry.key;
-              final amount = entry.value;
-              final percentage = (amount / total * 100);
+          ...spending.entries.map((entry) {
+            final category = entry.key;
+            final amount = entry.value;
+            final percentage = amount / total * 100;
+            final color = CategoryUtils.color(category);
 
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                color: _getCategoryColor(category)
-                                    .withOpacity(0.1),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                _categoryIcon(category),
-                                color: _getCategoryColor(category),
-                                size: 16,
-                              ),
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: color.withOpacity(0.1),
+                              shape: BoxShape.circle,
                             ),
-                            const SizedBox(width: 12),
-                            Text(
-                              category,
+                            child: Icon(CategoryUtils.icon(category),
+                                color: color, size: 16),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(category,
                               style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Text(
-                          '\$${amount.toStringAsFixed(2)} (${percentage.toStringAsFixed(1)}%)',
-                          style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary)),
+                        ],
+                      ),
+                      Text(
+                        '\$${amount.toStringAsFixed(2)} (${percentage.toStringAsFixed(1)}%)',
+                        style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: percentage / 100,
-                        minHeight: 6,
-                        backgroundColor: AppColors.border,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          _getCategoryColor(category),
-                        ),
+                            color: AppColors.textSecondary),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: percentage / 100,
+                      minHeight: 6,
+                      backgroundColor: AppColors.border,
+                      valueColor: AlwaysStoppedAnimation<Color>(color),
                     ),
-                  ],
-                ),
-              );
-            }).toList(),
-          ),
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
       ),
     );
-  }
-
-  double _getMaxY(TransactionProvider txProvider) {
-    final max = [txProvider.totalIncome, txProvider.totalExpenses]
-        .reduce((a, b) => a > b ? a : b);
-    return max * 1.2; // Add 20% padding
-  }
-
-  IconData _categoryIcon(String category) {
-    switch (category.toLowerCase()) {
-      case 'food':
-        return Icons.restaurant;
-      case 'transport':
-        return Icons.directions_car;
-      case 'shopping':
-        return Icons.shopping_bag;
-      case 'entertainment':
-        return Icons.movie;
-      case 'utilities':
-        return Icons.home;
-      case 'healthcare':
-        return Icons.medical_services;
-      case 'education':
-        return Icons.school;
-      default:
-        return Icons.more_horiz;
-    }
-  }
-
-  Color _getCategoryColor(String category) {
-    switch (category.toLowerCase()) {
-      case 'food':
-        return const Color(0xFFFF6B6B);
-      case 'transport':
-        return const Color(0xFF4ECDC4);
-      case 'shopping':
-        return const Color(0xFFFFE66D);
-      case 'entertainment':
-        return const Color(0xFFA78BFA);
-      case 'utilities':
-        return const Color(0xFF34D399);
-      case 'healthcare':
-        return const Color(0xFFFF8C5A);
-      case 'education':
-        return const Color(0xFF60A5FA);
-      default:
-        return AppColors.textSecondary;
-    }
   }
 }

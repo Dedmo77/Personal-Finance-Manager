@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_strings.dart';
+import '../../../core/utils/category_utils.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../../data/models/transaction.dart';
@@ -19,8 +21,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final month = DateFormat('yyyy-MM').format(DateTime.now());
-      context.read<TransactionProvider>().loadMonth(month);
+      // Only load if data hasn't already been loaded (e.g. coming back from
+      // another tab). The provider owns the current month.
+      context.read<TransactionProvider>().loadCurrentMonth();
     });
   }
 
@@ -35,7 +38,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: txProvider.isLoading
             ? const Center(child: CircularProgressIndicator())
             : RefreshIndicator(
-                onRefresh: () => txProvider.loadMonth(txProvider.currentMonth),
+                onRefresh: () => txProvider.reload(),
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(24),
@@ -79,20 +82,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '$greeting,',
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
-            ),
+            Text('$greeting,',
+                style: const TextStyle(
+                    fontSize: 14, color: AppColors.textSecondary)),
             Text(
               auth.userName.isEmpty ? 'User' : auth.userName,
               style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary),
             ),
           ],
         ),
@@ -105,11 +103,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               color: AppColors.primaryLight,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
-              Icons.person_outline_rounded,
-              color: AppColors.primary,
-              size: 22,
-            ),
+            child: const Icon(Icons.person_outline_rounded,
+                color: AppColors.primary, size: 22),
           ),
         ),
       ],
@@ -117,8 +112,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildBalanceCard(TransactionProvider txProvider) {
-    final currencyFormat = NumberFormat.currency(symbol: '\$');
-
+    final fmt = NumberFormat.currency(symbol: '\$');
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -129,29 +123,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Total balance',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
-            ),
-          ),
+          const Text(AppStrings.totalBalance,
+              style: TextStyle(color: Colors.white70, fontSize: 14)),
           const SizedBox(height: 8),
           Text(
-            currencyFormat.format(txProvider.balance),
+            fmt.format(txProvider.balance),
             style: const TextStyle(
-              color: Colors.white,
-              fontSize: 36,
-              fontWeight: FontWeight.w700,
-            ),
+                color: Colors.white,
+                fontSize: 36,
+                fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 16),
           Text(
             DateFormat('MMMM yyyy').format(DateTime.now()),
-            style: const TextStyle(
-              color: Colors.white60,
-              fontSize: 13,
-            ),
+            style: const TextStyle(color: Colors.white60, fontSize: 13),
           ),
         ],
       ),
@@ -159,14 +144,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildIncomeExpenseRow(TransactionProvider txProvider) {
-    final currencyFormat = NumberFormat.currency(symbol: '\$');
-
+    final fmt = NumberFormat.currency(symbol: '\$');
     return Row(
       children: [
         Expanded(
           child: _buildSummaryCard(
-            label: 'Income',
-            amount: currencyFormat.format(txProvider.totalIncome),
+            label: AppStrings.income,
+            amount: fmt.format(txProvider.totalIncome),
             icon: Icons.arrow_downward_rounded,
             color: AppColors.secondary,
           ),
@@ -174,8 +158,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         const SizedBox(width: 16),
         Expanded(
           child: _buildSummaryCard(
-            label: 'Expenses',
-            amount: currencyFormat.format(txProvider.totalExpenses),
+            label: AppStrings.expenses,
+            amount: fmt.format(txProvider.totalExpenses),
             icon: Icons.arrow_upward_rounded,
             color: AppColors.error,
           ),
@@ -212,21 +196,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              Text(
-                amount,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
+              Text(label,
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textSecondary)),
+              Text(amount,
+                  style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary)),
             ],
           ),
         ],
@@ -236,23 +213,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildQuickActions(BuildContext context) {
     final actions = [
-      {'label': 'Add', 'icon': Icons.add_circle_outline_rounded, 'route': '/add-transaction'},
+      {'label': AppStrings.add, 'icon': Icons.add_circle_outline_rounded, 'route': '/add-transaction'},
       {'label': 'Transactions', 'icon': Icons.receipt_long_outlined, 'route': '/transactions'},
       {'label': 'Budget', 'icon': Icons.pie_chart_outline_rounded, 'route': '/budget'},
-      {'label': 'Reports', 'icon': Icons.bar_chart_rounded, 'route': '/reports'},
+      {'label': AppStrings.reports, 'icon': Icons.bar_chart_rounded, 'route': '/reports'},
     ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Quick actions',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
+        const Text(AppStrings.quickActions,
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary)),
         const SizedBox(height: 12),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -268,20 +242,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       color: AppColors.primaryLight,
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: Icon(
-                      action['icon'] as IconData,
-                      color: AppColors.primary,
-                      size: 24,
-                    ),
+                    child: Icon(action['icon'] as IconData,
+                        color: AppColors.primary, size: 24),
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    action['label'] as String,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
+                  Text(action['label'] as String,
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.textSecondary)),
                 ],
               ),
             );
@@ -293,31 +260,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildRecentTransactions(TransactionProvider txProvider) {
     final recent = txProvider.recentTransactions;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Recent transactions',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
+            const Text(AppStrings.recentTransactions,
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary)),
             GestureDetector(
               onTap: () => context.push('/transactions'),
-              child: const Text(
-                'See all',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              child: const Text(AppStrings.seeAll,
+                  style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w500)),
             ),
           ],
         ),
@@ -325,10 +285,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         recent.isEmpty
             ? _buildEmptyState()
             : Column(
-                children: recent
-                    .map((t) => _buildTransactionTile(t))
-                    .toList(),
-              ),
+                children: recent.map(_buildTransactionTile).toList()),
       ],
     );
   }
@@ -356,31 +313,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
               color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              _categoryIcon(t.category),
-              color: color,
-              size: 20,
-            ),
+            child: Icon(CategoryUtils.icon(t.category), color: color, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  t.description,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
+                Text(t.description,
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textPrimary)),
                 Text(
                   '${t.category} · ${DateFormat('MMM d').format(date)}',
                   style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
+                      fontSize: 12, color: AppColors.textSecondary),
                 ),
               ],
             ),
@@ -388,10 +336,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Text(
             '$sign\$${t.convertedAmount.toStringAsFixed(2)}',
             style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
+                fontSize: 14, fontWeight: FontWeight.w600, color: color),
           ),
         ],
       ),
@@ -407,27 +352,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
       ),
-      child: Column(
-        children: const [
+      child: const Column(
+        children: [
           Icon(Icons.receipt_long_outlined,
               size: 48, color: AppColors.textSecondary),
           SizedBox(height: 12),
-          Text(
-            'No transactions yet',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
-            ),
-          ),
+          Text(AppStrings.noTransactions,
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textSecondary)),
           SizedBox(height: 4),
-          Text(
-            'Tap + to add your first transaction',
-            style: TextStyle(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-            ),
-          ),
+          Text(AppStrings.noTransactionsHint,
+              style:
+                  TextStyle(fontSize: 13, color: AppColors.textSecondary)),
         ],
       ),
     );
@@ -474,19 +412,5 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ],
     );
-  }
-
-  IconData _categoryIcon(String category) {
-    switch (category.toLowerCase()) {
-      case 'food': return Icons.restaurant_outlined;
-      case 'transport': return Icons.directions_car_outlined;
-      case 'shopping': return Icons.shopping_bag_outlined;
-      case 'health': return Icons.favorite_outline_rounded;
-      case 'rent': return Icons.home_outlined;
-      case 'entertainment': return Icons.movie_outlined;
-      case 'salary': return Icons.work_outline_rounded;
-      case 'utilities': return Icons.bolt_outlined;
-      default: return Icons.attach_money_rounded;
-    }
   }
 }

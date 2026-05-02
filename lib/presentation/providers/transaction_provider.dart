@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../data/models/transaction.dart';
 import '../../data/repositories/transaction_repository.dart';
-import 'package:intl/intl.dart';
 
 class TransactionProvider extends ChangeNotifier {
   final TransactionRepository _repo = TransactionRepository();
@@ -12,6 +12,7 @@ class TransactionProvider extends ChangeNotifier {
   double _totalExpenses = 0;
   bool _isLoading = false;
 
+  // Single source of truth for the selected month, initialised to now.
   String _currentMonth = DateFormat('yyyy-MM').format(DateTime.now());
 
   List<Transaction> get transactions => _transactions;
@@ -21,6 +22,13 @@ class TransactionProvider extends ChangeNotifier {
   double get balance => _totalIncome - _totalExpenses;
   bool get isLoading => _isLoading;
   String get currentMonth => _currentMonth;
+
+  List<Transaction> get recentTransactions => _transactions.take(5).toList();
+
+  /// Called once (from main or a root widget) to load the initial month.
+  /// Subsequent screens should call [reload] or [loadMonth] only when they
+  /// need a different month; otherwise they simply read from the provider.
+  Future<void> loadCurrentMonth() => loadMonth(_currentMonth);
 
   Future<void> loadMonth(String month) async {
     _currentMonth = month;
@@ -36,20 +44,20 @@ class TransactionProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> reload() => loadMonth(_currentMonth);
+
   Future<void> addTransaction(Transaction t) async {
     await _repo.addTransaction(t);
-    await loadMonth(_currentMonth);
+    await reload();
   }
 
   Future<void> updateTransaction(Transaction t) async {
     await _repo.update(t);
-    await loadMonth(_currentMonth);
+    await reload();
   }
 
   Future<void> deleteTransaction(int id) async {
     await _repo.delete(id);
-    await loadMonth(_currentMonth);
+    await reload();
   }
-
-  List<Transaction> get recentTransactions => _transactions.take(5).toList();
 }

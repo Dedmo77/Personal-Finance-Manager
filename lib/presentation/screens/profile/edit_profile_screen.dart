@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_strings.dart';
+import '../../widgets/app_text_field.dart';
 import '../../providers/auth_provider.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -13,11 +15,11 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
-  late TextEditingController _nameController;
-  late TextEditingController _emailController;
-  late TextEditingController _currentPasswordController;
-  late TextEditingController _newPasswordController;
-  late TextEditingController _confirmPasswordController;
+  late final TextEditingController _nameController;
+  late final TextEditingController _emailController;
+  final _currentPasswordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
 
   bool _obscureCurrentPassword = true;
   bool _obscureNewPassword = true;
@@ -30,9 +32,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final auth = context.read<AuthProvider>();
     _nameController = TextEditingController(text: auth.userName);
     _emailController = TextEditingController(text: auth.userEmail);
-    _currentPasswordController = TextEditingController();
-    _newPasswordController = TextEditingController();
-    _confirmPasswordController = TextEditingController();
   }
 
   @override
@@ -50,32 +49,32 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     setState(() => _isLoading = true);
 
-    try {
-      // Simulate saving changes
-      await Future.delayed(const Duration(milliseconds: 1000));
+    final error = await context.read<AuthProvider>().updateProfile(
+          name: _nameController.text.trim(),
+          email: _emailController.text.trim(),
+          currentPassword: _currentPasswordController.text.isEmpty
+              ? null
+              : _currentPasswordController.text,
+          newPassword: _newPasswordController.text.isEmpty
+              ? null
+              : _newPasswordController.text,
+        );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profile updated successfully'),
-            backgroundColor: AppColors.secondary,
-          ),
-        );
-        context.pop();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error updating profile: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(error), backgroundColor: AppColors.error),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(AppStrings.profileUpdated),
+            backgroundColor: AppColors.secondary),
+      );
+      context.pop();
     }
   }
 
@@ -86,57 +85,55 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.primary,
         elevation: 0,
-        title: const Text(
-          'Edit Profile',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
+        title: const Text(AppStrings.editProfile,
+            style: TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.go('/dashboard'),
+          onPressed: () => context.pop(),
         ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          padding:
+              const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildSection(
-                  title: 'Basic Information',
+                  title: AppStrings.basicInformation,
                   child: Column(
                     children: [
-                      _buildTextField(
+                      AppTextField(
                         controller: _nameController,
-                        label: 'Full Name',
-                        hint: 'Enter your full name',
+                        label: AppStrings.fullNameLabel,
+                        hint: AppStrings.fullNameFieldHint,
                         prefixIcon: Icons.person,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Name is required';
+                        validator: (val) {
+                          if (val == null || val.isEmpty) {
+                            return AppStrings.nameRequired;
                           }
-                          if (value.length < 2) {
-                            return 'Name must be at least 2 characters';
-                          }
+                          if (val.length < 2) return AppStrings.nameTooShort;
                           return null;
                         },
                       ),
                       const SizedBox(height: 16),
-                      _buildTextField(
+                      AppTextField(
                         controller: _emailController,
-                        label: 'Email Address',
-                        hint: 'Enter your email',
+                        label: AppStrings.emailLabel,
+                        hint: AppStrings.emailFieldHint,
                         prefixIcon: Icons.email,
                         keyboardType: TextInputType.emailAddress,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Email is required';
+                        validator: (val) {
+                          if (val == null || val.isEmpty) {
+                            return AppStrings.emailRequired;
                           }
                           if (!RegExp(
                                   r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-                              .hasMatch(value)) {
-                            return 'Enter a valid email';
+                              .hasMatch(val)) {
+                            return AppStrings.emailInvalid;
                           }
                           return null;
                         },
@@ -146,64 +143,71 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
                 const SizedBox(height: 24),
                 _buildSection(
-                  title: 'Change Password',
-                  subtitle: 'Leave blank to keep your current password',
+                  title: AppStrings.changePassword,
+                  subtitle: AppStrings.changePasswordSubtitle,
                   child: Column(
                     children: [
-                      _buildPasswordField(
+                      AppTextField(
                         controller: _currentPasswordController,
-                        label: 'Current Password',
-                        hint: 'Enter your current password',
+                        label: AppStrings.currentPassword,
+                        hint: AppStrings.currentPasswordHint,
+                        prefixIcon: Icons.lock,
                         obscureText: _obscureCurrentPassword,
-                        onToggleVisibility: () {
-                          setState(() =>
-                              _obscureCurrentPassword = !_obscureCurrentPassword);
-                        },
-                        validator: (value) {
-                          if (_newPasswordController.text.isNotEmpty) {
-                            if (value == null || value.isEmpty) {
-                              return 'Current password is required to change password';
-                            }
+                        suffixIcon: _visibilityButton(
+                          obscure: _obscureCurrentPassword,
+                          onTap: () => setState(() =>
+                              _obscureCurrentPassword =
+                                  !_obscureCurrentPassword),
+                        ),
+                        validator: (val) {
+                          if (_newPasswordController.text.isNotEmpty &&
+                              (val == null || val.isEmpty)) {
+                            return AppStrings.currentPasswordRequired;
                           }
                           return null;
                         },
                       ),
                       const SizedBox(height: 16),
-                      _buildPasswordField(
+                      AppTextField(
                         controller: _newPasswordController,
-                        label: 'New Password',
-                        hint: 'Enter new password (optional)',
+                        label: AppStrings.newPassword,
+                        hint: AppStrings.newPasswordHint,
+                        prefixIcon: Icons.lock_outline,
                         obscureText: _obscureNewPassword,
-                        onToggleVisibility: () {
-                          setState(() =>
-                              _obscureNewPassword = !_obscureNewPassword);
-                        },
-                        validator: (value) {
-                          if (value != null && value.isNotEmpty) {
-                            if (value.length < 6) {
-                              return 'Password must be at least 6 characters';
-                            }
+                        suffixIcon: _visibilityButton(
+                          obscure: _obscureNewPassword,
+                          onTap: () => setState(() =>
+                              _obscureNewPassword = !_obscureNewPassword),
+                        ),
+                        validator: (val) {
+                          if (val != null &&
+                              val.isNotEmpty &&
+                              val.length < 6) {
+                            return AppStrings.passwordShort;
                           }
                           return null;
                         },
                       ),
                       const SizedBox(height: 16),
-                      _buildPasswordField(
+                      AppTextField(
                         controller: _confirmPasswordController,
-                        label: 'Confirm New Password',
-                        hint: 'Confirm new password (optional)',
+                        label: AppStrings.confirmNewPassword,
+                        hint: AppStrings.confirmNewPasswordHint,
+                        prefixIcon: Icons.lock_outline,
                         obscureText: _obscureConfirmPassword,
-                        onToggleVisibility: () {
-                          setState(() =>
-                              _obscureConfirmPassword = !_obscureConfirmPassword);
-                        },
-                        validator: (value) {
+                        suffixIcon: _visibilityButton(
+                          obscure: _obscureConfirmPassword,
+                          onTap: () => setState(() =>
+                              _obscureConfirmPassword =
+                                  !_obscureConfirmPassword),
+                        ),
+                        validator: (val) {
                           if (_newPasswordController.text.isNotEmpty) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please confirm your new password';
+                            if (val == null || val.isEmpty) {
+                              return AppStrings.confirmPasswordRequired;
                             }
-                            if (value != _newPasswordController.text) {
-                              return 'Passwords do not match';
+                            if (val != _newPasswordController.text) {
+                              return AppStrings.passwordsDoNotMatch;
                             }
                           }
                           return null;
@@ -221,30 +225,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       backgroundColor: AppColors.primary,
                       disabledBackgroundColor:
                           AppColors.primary.withOpacity(0.5),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding:
+                          const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                          borderRadius: BorderRadius.circular(10)),
                     ),
                     child: _isLoading
                         ? const SizedBox(
                             height: 20,
                             width: 20,
                             child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
-                              ),
-                            ),
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white)),
                           )
-                        : const Text(
-                            'Save Changes',
+                        : const Text(AppStrings.saveChanges,
                             style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white)),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -254,19 +253,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     onPressed: _isLoading ? null : () => context.pop(),
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: AppColors.primary),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding:
+                          const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                          borderRadius: BorderRadius.circular(10)),
                     ),
-                    child: const Text(
-                      'Cancel',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
-                    ),
+                    child: const Text(AppStrings.cancel,
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary)),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -293,23 +289,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
-          ),
+          Text(title,
+              style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary)),
           if (subtitle != null) ...[
             const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-              ),
-            ),
+            Text(subtitle,
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.textSecondary)),
           ],
           const SizedBox(height: 16),
           child,
@@ -318,131 +307,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    required IconData prefixIcon,
-    TextInputType keyboardType = TextInputType.text,
-    String? Function(String?)? validator,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: controller,
-          keyboardType: keyboardType,
-          validator: validator,
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: const TextStyle(color: AppColors.textSecondary),
-            prefixIcon: Icon(prefixIcon, color: AppColors.primary, size: 20),
-            filled: true,
-            fillColor: AppColors.primaryLight,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.border),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.border),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.primary, width: 2),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.error),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.error, width: 2),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 12,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPasswordField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    required bool obscureText,
-    required VoidCallback onToggleVisibility,
-    String? Function(String?)? validator,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: controller,
-          obscureText: obscureText,
-          validator: validator,
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: const TextStyle(color: AppColors.textSecondary),
-            prefixIcon: const Icon(Icons.lock, color: AppColors.primary, size: 20),
-            suffixIcon: GestureDetector(
-              onTap: onToggleVisibility,
-              child: Icon(
-                obscureText ? Icons.visibility_off : Icons.visibility,
-                color: AppColors.textSecondary,
-                size: 20,
-              ),
-            ),
-            filled: true,
-            fillColor: AppColors.primaryLight,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.border),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.border),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.primary, width: 2),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.error),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.error, width: 2),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 12,
-            ),
-          ),
-        ),
-      ],
+  Widget _visibilityButton(
+      {required bool obscure, required VoidCallback onTap}) {
+    return IconButton(
+      icon: Icon(
+        obscure ? Icons.visibility_off : Icons.visibility,
+        color: AppColors.textSecondary,
+        size: 20,
+      ),
+      onPressed: onTap,
     );
   }
 }
