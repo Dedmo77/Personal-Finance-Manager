@@ -3,271 +3,158 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/category_utils.dart';
 import '../../providers/transaction_provider.dart';
 import '../../../data/models/transaction.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
-
   @override
   State<TransactionsScreen> createState() => _TransactionsScreenState();
 }
 
 class _TransactionsScreenState extends State<TransactionsScreen> {
-  String _filterType = 'all'; // all, income, expense
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final month = DateFormat('yyyy-MM').format(DateTime.now());
-      context.read<TransactionProvider>().loadMonth(month);
-    });
-  }
+  String _filter = 'all';
 
   @override
   Widget build(BuildContext context) {
-    final txProvider = context.watch<TransactionProvider>();
+    final c   = AppColors.of(context);
+    final txP = context.watch<TransactionProvider>();
+
+    final filtered = _filter == 'all'
+        ? txP.transactions
+        : txP.transactions.where((t) => t.type == _filter).toList();
+
+    final grouped = <String, List<Transaction>>{};
+    for (final t in filtered) {
+      final key = DateFormat('MMM dd, yyyy')
+          .format(DateTime.fromMillisecondsSinceEpoch(t.date));
+      grouped.putIfAbsent(key, () => []).add(t);
+    }
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: c.background,
       appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        elevation: 0,
-        title: const Text(
-          'Transactions',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
+        backgroundColor: c.primary, elevation: 0,
+        title: const Text('Transactions',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => context.go('/dashboard'),
         ),
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            _buildFilterTabs(),
-            Expanded(
-              child: txProvider.isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _buildTransactionsList(txProvider),
-            ),
-          ],
-        ),
+        child: Column(children: [
+          // Filter tabs
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: c.surface,
+            child: Row(children: [
+              _chip(c, 'All', 'all'),
+              const SizedBox(width: 8),
+              _chip(c, 'Income', 'income'),
+              const SizedBox(width: 8),
+              _chip(c, 'Expense', 'expense'),
+            ]),
+          ),
+          Expanded(
+            child: txP.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : filtered.isEmpty
+                    ? _emptyState(c)
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        itemCount: grouped.length,
+                        itemBuilder: (_, i) {
+                          final key = grouped.keys.elementAt(i);
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                child: Text(key,
+                                    style: TextStyle(fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: c.textSecondary)),
+                              ),
+                              ...grouped[key]!.map((t) => _txTile(c, t)),
+                            ],
+                          );
+                        },
+                      ),
+          ),
+        ]),
       ),
     );
   }
 
-  Widget _buildFilterTabs() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      color: AppColors.surface,
-      child: Row(
-        children: [
-          _buildFilterChip('All', 'all'),
-          const SizedBox(width: 8),
-          _buildFilterChip('Income', 'income'),
-          const SizedBox(width: 8),
-          _buildFilterChip('Expense', 'expense'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFilterChip(String label, String type) {
-    final isSelected = _filterType == type;
+  Widget _chip(AppColorSet c, String label, String type) {
+    final sel = _filter == type;
     return GestureDetector(
-      onTap: () => setState(() => _filterType = type),
+      onTap: () => setState(() => _filter = type),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : AppColors.border,
+          color: sel ? c.primary : c.border,
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: isSelected ? Colors.white : AppColors.textSecondary,
-          ),
-        ),
+        child: Text(label,
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+                color: sel ? Colors.white : c.textSecondary)),
       ),
     );
   }
 
-  Widget _buildTransactionsList(TransactionProvider txProvider) {
-    final allTransactions = txProvider.transactions;
-
-    // Filter transactions
-    final filteredTransactions = _filterType == 'all'
-        ? allTransactions
-        : allTransactions
-            .where((t) => t.type == _filterType)
-            .toList();
-
-    if (filteredTransactions.isEmpty) {
-      return _buildEmptyState();
-    }
-
-    // Group by date
-    final groupedByDate = <String, List<Transaction>>{};
-    for (final t in filteredTransactions) {
-      final date = DateTime.fromMillisecondsSinceEpoch(t.date);
-      final dateKey = DateFormat('MMM dd, yyyy').format(date);
-      groupedByDate.putIfAbsent(dateKey, () => []);
-      groupedByDate[dateKey]!.add(t);
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      itemCount: groupedByDate.length,
-      itemBuilder: (context, index) {
-        final dateKey = groupedByDate.keys.elementAt(index);
-        final transactions = groupedByDate[dateKey]!;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Text(
-                dateKey,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ),
-            ...transactions
-                .map((t) => _buildTransactionTile(t))
-                .toList(),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildTransactionTile(Transaction t) {
+  Widget _txTile(AppColorSet c, Transaction t) {
     final isExpense = t.type == 'expense';
-    final color = isExpense ? AppColors.error : AppColors.secondary;
-    final sign = isExpense ? '-' : '+';
-    final currencyFormat = NumberFormat.currency(symbol: '\$');
-
+    final color     = isExpense ? c.error : c.secondary;
+    final fmt       = NumberFormat.currency(symbol: '\$');
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(12),
-      ),
+      decoration: BoxDecoration(color: c.surface,
+          border: Border.all(color: c.border),
+          borderRadius: BorderRadius.circular(12)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  _categoryIcon(t.category),
-                  color: color,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    t.description,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    t.category,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          Text(
-            '$sign${currencyFormat.format(t.convertedAmount)}',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: color,
+          Row(children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(color: color.withOpacity(0.1),
+                  shape: BoxShape.circle),
+              child: Icon(CategoryUtils.icon(t.category), color: color, size: 20),
             ),
+            const SizedBox(width: 12),
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(t.description,
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
+                      color: c.textPrimary)),
+              const SizedBox(height: 4),
+              Text(t.category,
+                  style: TextStyle(fontSize: 12, color: c.textSecondary)),
+            ]),
+          ]),
+          Text(
+            '${isExpense ? '-' : '+'}${fmt.format(t.convertedAmount)}',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.receipt_long_outlined,
-            size: 64,
-            color: AppColors.textSecondary.withOpacity(0.5),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No transactions',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Start by adding your first transaction',
-            style: TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary.withOpacity(0.7),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  IconData _categoryIcon(String category) {
-    switch (category.toLowerCase()) {
-      case 'food':
-        return Icons.restaurant;
-      case 'transport':
-        return Icons.directions_car;
-      case 'shopping':
-        return Icons.shopping_bag;
-      case 'entertainment':
-        return Icons.movie;
-      case 'utilities':
-        return Icons.home;
-      case 'healthcare':
-        return Icons.medical_services;
-      case 'education':
-        return Icons.school;
-      default:
-        return Icons.more_horiz;
-    }
-  }
+  Widget _emptyState(AppColorSet c) => Center(
+    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      Icon(Icons.receipt_long_outlined, size: 64,
+          color: c.textSecondary.withOpacity(0.5)),
+      const SizedBox(height: 16),
+      Text('No transactions', style: TextStyle(fontSize: 16,
+          fontWeight: FontWeight.w600, color: c.textSecondary)),
+      const SizedBox(height: 8),
+      Text('Start by adding your first transaction',
+          style: TextStyle(fontSize: 12, color: c.textSecondary.withOpacity(0.7))),
+    ]),
+  );
 }

@@ -6,40 +6,32 @@ import '../../data/repositories/transaction_repository.dart';
 class TransactionProvider extends ChangeNotifier {
   final TransactionRepository _repo = TransactionRepository();
 
-  List<Transaction> _transactions = [];
+  List<Transaction> _transactions    = [];
   Map<String, double> _spendingByCategory = {};
-  double _totalIncome = 0;
+  double _totalIncome   = 0;
   double _totalExpenses = 0;
-  bool _isLoading = false;
+  bool   _isLoading     = false;
+  String _currentMonth  = DateFormat('yyyy-MM').format(DateTime.now());
 
-  // Single source of truth for the selected month, initialised to now.
-  String _currentMonth = DateFormat('yyyy-MM').format(DateTime.now());
-
-  List<Transaction> get transactions => _transactions;
-  Map<String, double> get spendingByCategory => _spendingByCategory;
-  double get totalIncome => _totalIncome;
+  List<Transaction>   get transactions        => _transactions;
+  Map<String, double> get spendingByCategory  => _spendingByCategory;
+  double get totalIncome   => _totalIncome;
   double get totalExpenses => _totalExpenses;
-  double get balance => _totalIncome - _totalExpenses;
-  bool get isLoading => _isLoading;
-  String get currentMonth => _currentMonth;
-
+  double get balance       => _totalIncome - _totalExpenses;
+  bool   get isLoading     => _isLoading;
+  String get currentMonth  => _currentMonth;
   List<Transaction> get recentTransactions => _transactions.take(5).toList();
 
-  /// Called once (from main or a root widget) to load the initial month.
-  /// Subsequent screens should call [reload] or [loadMonth] only when they
-  /// need a different month; otherwise they simply read from the provider.
   Future<void> loadCurrentMonth() => loadMonth(_currentMonth);
 
   Future<void> loadMonth(String month) async {
     _currentMonth = month;
-    _isLoading = true;
+    _isLoading    = true;
     notifyListeners();
-
-    _transactions = await _repo.getByMonth(month);
-    _spendingByCategory = await _repo.getSpendingByCategory(month);
-    _totalIncome = await _repo.getTotalIncome(month);
-    _totalExpenses = await _repo.getTotalExpenses(month);
-
+    _transactions        = await _repo.getByMonth(month);
+    _spendingByCategory  = await _repo.getSpendingByCategory(month);
+    _totalIncome         = await _repo.getTotalIncome(month);
+    _totalExpenses       = await _repo.getTotalExpenses(month);
     _isLoading = false;
     notifyListeners();
   }
@@ -47,17 +39,12 @@ class TransactionProvider extends ChangeNotifier {
   Future<void> reload() => loadMonth(_currentMonth);
 
   Future<void> addTransaction(Transaction t) async {
-    await _repo.addTransaction(t);
-    await reload();
+    await _repo.addTransaction(t); await reload();
   }
-
   Future<void> updateTransaction(Transaction t) async {
-    await _repo.update(t);
-    await reload();
+    await _repo.update(t); await reload();
   }
-
   Future<void> deleteTransaction(int id) async {
-    await _repo.delete(id);
-    await reload();
+    await _repo.delete(id); await reload();
   }
 }
